@@ -40,7 +40,7 @@ A file downloading and management tool for retro handhelds that run Rocknix syst
   ```
 
 ### Pico-8 Game
-A simple Pico-8 game created to showcase Fetcher.
+A simple Pico-8 game created to showcase Fetcher (Created by me, thank you very much ❤️).
 
 **Location:** `pico-8/`
 - `romnix.p8.png` - Pico-8 cartridge file
