@@ -4,7 +4,7 @@ A file downloading and management tool for retro handhelds that run Rocknix syst
 
 ## How to Use
 
-1. Edit fetcher.py with your own links in line 14
+1. Edit fetcher.py with your own links in line 15
 2. Make sure to add your links in PLATFORM_URLS = {}
 3. If a directory doesn't exist it'll be created
 
