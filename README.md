@@ -3,9 +3,7 @@
   &nbsp;&nbsp;&nbsp;
   <img src="/themes/fetcher_2.png" alt="pico" width="320" />
    &nbsp;&nbsp;&nbsp;
-  <img src="/themes/fetcher_3.png" alt="pico" width="320" />
-   &nbsp;&nbsp;&nbsp;
-  <img src="/themes/fetcher_4.png" alt="pico" width="320" />
+  <img src="/themes/fetcher_5.png" alt="pico" width="320" />
 </p>
 # Fetcher
 
