@@ -297,6 +297,7 @@
         <div class="input-tabs">
             <button class="tab-btn active" data-tab="rgb">RGB</button>
             <button class="tab-btn" data-tab="hsb">HSB</button>
+            <button class="tab-btn" data-tab="lua">Lua</button>
         </div>
 
         <div class="input-panel active" id="rgb-panel">
@@ -342,6 +343,14 @@
                         <input type="range" id="brightnessSlider" class="slider brightness-slider" min="0" max="100" value="100">
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="input-panel" id="lua-panel">
+            <div class="input-group">
+                <label>Lua Color Values (0.0 - 1.0)</label>
+                <input type="text" id="luaInput" placeholder="{0.75, 0.70, 0.85}" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1.1rem; font-family: 'Courier New', monospace;">
+                <p style="margin-top: 10px; font-size: 0.85rem; color: #666;">Enter values like: {0.75, 0.70, 0.85} or 0.75, 0.70, 0.85</p>
             </div>
         </div>
 
@@ -401,6 +410,8 @@
                 this.tabBtns = document.querySelectorAll('.tab-btn');
                 this.rgbPanel = document.getElementById('rgb-panel');
                 this.hsbPanel = document.getElementById('hsb-panel');
+                this.luaPanel = document.getElementById('lua-panel');
+                this.luaInput = document.getElementById('luaInput');
                 
                 this.currentFormat = 'table';
                 this.updatingFromHSB = false;
@@ -465,12 +476,21 @@
                         if (tab === 'rgb') {
                             this.rgbPanel.classList.add('active');
                             this.hsbPanel.classList.remove('active');
-                        } else {
+                            this.luaPanel.classList.remove('active');
+                        } else if (tab === 'hsb') {
                             this.hsbPanel.classList.add('active');
                             this.rgbPanel.classList.remove('active');
+                            this.luaPanel.classList.remove('active');
+                        } else {
+                            this.luaPanel.classList.add('active');
+                            this.rgbPanel.classList.remove('active');
+                            this.hsbPanel.classList.remove('active');
                         }
                     });
                 });
+
+                // Lua input event
+                this.luaInput.addEventListener('input', () => this.updateFromLua());
             }
 
             updateFromRGB() {
@@ -598,6 +618,64 @@
                 this.updateColor();
             }
 
+            updateFromLua() {
+                let luaText = this.luaInput.value.trim();
+                
+                // Remove curly braces if present
+                luaText = luaText.replace(/^[{#\s]+|[,}#\s]+$/g, '');
+                
+                // Split by comma or space
+                const parts = luaText.split(/[,\s]+/).filter(p => p.length > 0);
+                
+                if (parts.length >= 3) {
+                    const luaR = parseFloat(parts[0]);
+                    const luaG = parseFloat(parts[1]);
+                    const luaB = parseFloat(parts[2]);
+                    
+                    // Validate values are between 0 and 1
+                    if (!isNaN(luaR) && !isNaN(luaG) && !isNaN(luaB) &&
+                        luaR >= 0 && luaR <= 1 &&
+                        luaG >= 0 && luaG <= 1 &&
+                        luaB >= 0 && luaB <= 1) {
+                        
+                        // Convert to RGB (0-255)
+                        const r = Math.round(luaR * 255);
+                        const g = Math.round(luaG * 255);
+                        const b = Math.round(luaB * 255);
+                        
+                        // Update RGB inputs and sliders
+                        this.redInput.value = r;
+                        this.greenInput.value = g;
+                        this.blueInput.value = b;
+                        this.redSlider.value = r;
+                        this.greenSlider.value = g;
+                        this.blueSlider.value = b;
+                        
+                        // Update HSB values
+                        const hsb = this.rgbToHsb(r, g, b);
+                        this.hueInput.value = Math.round(hsb.h);
+                        this.saturationInput.value = Math.round(hsb.s);
+                        this.brightnessInput.value = Math.round(hsb.b);
+                        this.hueSlider.value = Math.round(hsb.h);
+                        this.saturationSlider.value = Math.round(hsb.s);
+                        this.brightnessSlider.value = Math.round(hsb.b);
+                        
+                        // Update hex
+                        const hex = '#' + [r, g, b].map(x => {
+                            const hex = x.toString(16);
+                            return hex.length === 1 ? '0' + hex : hex;
+                        }).join('').toUpperCase();
+                        this.hexInput.value = hex;
+                        
+                        // Update slider gradients
+                        this.updateSliderGradients();
+                        
+                        // Update color display
+                        this.updateColor();
+                    }
+                }
+            }
+
             updateColor() {
                 const r = parseInt(this.redInput.value) || 0;
                 const g = parseInt(this.greenInput.value) || 0;
@@ -628,6 +706,11 @@
                 }
 
                 this.luaOutput.textContent = output;
+                
+                // Also update the Lua input field if not currently focused
+                if (document.activeElement !== this.luaInput) {
+                    this.luaInput.value = `{${luaR}, ${luaG}, ${luaB}}`;
+                }
             }
 
             // HSB to RGB conversion
