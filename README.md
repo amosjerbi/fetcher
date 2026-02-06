@@ -1,4 +1,6 @@
 <p align="center">
+  <img src="/themes/fetcher_1.png" alt="demo" width="320" />
+  &nbsp;&nbsp;&nbsp;
   <img src="/themes/fetcher_4.png" alt="demo" width="320" />
   &nbsp;&nbsp;&nbsp;
   <img src="/themes/fetcher_5.png" alt="pico" width="320" />
