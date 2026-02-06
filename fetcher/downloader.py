@@ -37,26 +37,6 @@ def get_platform_folder(platform_name):
     except Exception as e:
         print(f"Error getting platform folder: {e}", file=sys.stderr)
     
-    # Fallback to hardcoded mapping
-    fallback_folders = {
-        "pico-8": "pico-8",
-        "Game Boy": "gb",
-        "Game Boy Color": "gbc",
-        "Game Boy Advance": "gba",
-        "NES": "nes",
-        "Famicom Disk System": "fds",
-        "SNES": "snes",
-        "Game Gear": "gamegear",
-        "Master System": "mastersystem",
-        "Genesis": "genesis",
-        "Saturn": "saturn",
-        "Dreamcast": "dreamcast",
-        "PlayStation 1": "psx",
-        "PSP": "psp",
-        "Nintendo DS": "nds",
-        "Nintendo 64": "n64",
-        "PC Engine": "pcengine"
-    }
     
     return fallback_folders.get(platform_name, platform_name.lower().replace(" ", ""))
 
@@ -471,15 +451,33 @@ def download_file(platform_name, file_filename):
         
         # Construct download URL - handle GitHub repositories specially
         if 'github.com' in base_url:
-            # Convert GitHub repository URL to raw file URL
-            # From: https://github.com/user/repo to https://raw.githubusercontent.com/user/repo/main/
-            raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
-            if not raw_base.endswith('/'):
-                raw_base += '/'
-            # Add main branch if not already specified
-            if '/main/' not in raw_base and '/master/' not in raw_base:
-                raw_base += 'main/'
-            file_url = raw_base + encoded_filename
+            if '/tree/' in base_url:
+                # GitHub folder/tree URL
+                # From: https://github.com/user/repo/tree/main/pico-8
+                # To: https://raw.githubusercontent.com/user/repo/main/pico-8/
+                raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
+                raw_base = raw_base.replace('/tree/', '/')
+                if not raw_base.endswith('/'):
+                    raw_base += '/'
+                # file_filename contains full path like "pico-8/romnix.p8.png"
+                # Extract just the filename for the URL
+                filename_only = file_filename.split('/')[-1]
+                file_url = raw_base + filename_only
+            elif '/blob/' in base_url:
+                # GitHub blob URL - single file
+                # From: https://github.com/user/repo/blob/main/pico-8/file.png
+                # To: https://raw.githubusercontent.com/user/repo/main/pico-8/file.png
+                raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
+                raw_base = raw_base.replace('/blob/', '/')
+                file_url = raw_base
+            else:
+                # Regular GitHub repo URL
+                raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
+                if not raw_base.endswith('/'):
+                    raw_base += '/'
+                if '/main/' not in raw_base and '/master/' not in raw_base:
+                    raw_base += 'main/'
+                file_url = raw_base + encoded_filename
         else:
             # For Myrient and other direct download sites
             if not base_url.endswith('/'):
