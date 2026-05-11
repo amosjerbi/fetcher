@@ -16,9 +16,6 @@ PLATFORM_URLS = {
     "pico-8": "https://github.com/amosjerbi/fetcher/tree/main/pico-8",
 }
 
-# GitHub raw URL converter - converts tree URLs to raw content URLs
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/amosjerbi/fetcher/main/"
-
 CACHE_DIR = "/tmp/file_cache"
 CACHE_EXPIRY = 3600  # 1 hour cache
 
@@ -54,96 +51,59 @@ def load_from_cache(cache_file):
 def save_to_cache(cache_file, data):
     """Save file list to cache"""
     try:
+        # Avoid caching empty success payloads that can mask transient source issues.
+        if isinstance(data, dict) and data.get("status") == "success" and data.get("count", 0) == 0:
+            return
         with open(cache_file, 'w') as f:
             json.dump(data, f)
     except:
         pass
 
-def simple_html_parse(html_content, max_files=999, url=None):
+def simple_html_parse(html_content, max_files=999):
     """Complete HTML parsing - get ALL files"""
+    # Support common ROM/archive formats across different source sites.
+    file_pattern = (
+        r'href="([^"]*\.(?:zip|7z|rar|iso|chd|cue|bin|gb|gbc|gba|nds|n64|z64|v64|nes|sfc|smc|gen|md|p8\.png))"'
+    )
+    matches = re.findall(file_pattern, html_content, flags=re.IGNORECASE)
+    
     files = []
     
-    # Check if this is a GitHub tree (folder) URL
-    is_github_tree = url and 'github.com' in url and '/tree/' in url
-    
-    if is_github_tree:
-        # GitHub embeds file list as JSON in a script tag
-        # Look for: <script type="application/json" data-target="react-app.embeddedData">
-        json_pattern = r'<script type="application/json" data-target="react-app\.embeddedData">([^<]+)</script>'
-        match = re.search(json_pattern, html_content)
-        
-        if match:
-            try:
-                import json as json_module
-                data = json_module.loads(match.group(1))
-                tree_items = data.get('payload', {}).get('tree', {}).get('items', [])
-                
-                for item in tree_items:
-                    if item.get('contentType') == 'file':
-                        name = item.get('name', '')
-                        path = item.get('path', '')  # Full path like "pico-8/romnix.p8.png"
-                        
-                        # For GitHub, use full path as filename for download URL construction
-                        filename = path
-                        
-                        # Clean up the file name for display
-                        display_name = urllib.parse.unquote(name)
-                        if display_name.endswith('.zip'):
-                            display_name = display_name[:-4]
-                        elif display_name.endswith('.p8.png'):
-                            display_name = display_name[:-7]
-                        
-                        files.append({
-                            "name": display_name,
-                            "filename": filename,
-                            "path": path
-                        })
-            except Exception as e:
-                print(f"Error parsing GitHub JSON: {e}", file=sys.stderr)
-    else:
-        # Standard pattern for other sites
-        file_pattern = r'href="([^"]*\.(?:zip|p8\.png|rom|bin|cue|iso|7z))"'
-        matches = re.findall(file_pattern, html_content)
-        
-        for match in matches:
-            if match.startswith('../'):
-                continue
+    for match in matches:
+        # Skip parent directory links but allow GitHub blob links
+        if match.startswith('../'):
+            continue
             
-            if match.startswith('/') and '/blob/' in match:
-                filename = match.split('/')[-1]
-            elif match.startswith('/'):
-                continue
-            else:
-                filename = match
-                
-            display_name = urllib.parse.unquote(filename)
-            if display_name.endswith('.zip'):
-                display_name = display_name[:-4]
-            elif display_name.endswith('.p8.png'):
-                display_name = display_name[:-7]
+        # Extract filename from GitHub blob URLs like /user/repo/blob/main/file.zip
+        if match.startswith('/') and '/blob/' in match:
+            # Extract just the filename from the path
+            filename = match.split('/')[-1]
+        elif match.startswith('/'):
+            # Keep absolute path links by taking the leaf filename.
+            filename = match.split('/')[-1]
+        elif match.startswith('http://') or match.startswith('https://'):
+            # Keep external absolute links by taking the leaf filename.
+            filename = match.split('/')[-1]
+        else:
+            filename = match
             
-            files.append({
-                "name": display_name,
-                "filename": filename
-            })
+        # Clean up the file name for display
+        display_name = urllib.parse.unquote(filename)
+        lower_name = display_name.lower()
+        if lower_name.endswith('.p8.png'):
+            display_name = display_name[:-7]  # Remove .p8.png extension for display
+        else:
+            # Remove one extension for display (e.g. .zip, .gb, .7z).
+            display_name = re.sub(r'\.[^.]+$', '', display_name)
+        
+        files.append({
+            "name": display_name,
+            "filename": filename  # Use just the filename for download
+        })
+        
+        # Removed the count limit - now gets ALL files
     
     return files
-
-def github_url_to_raw(url, filename):
-    """Convert GitHub URL to raw content URL"""
-    # Convert tree URLs to raw content URLs
-    # https://github.com/user/repo/tree/main/pico-8/file.png
-    # -> https://raw.githubusercontent.com/user/repo/main/pico-8/file.png
-    if 'github.com' in url and '/tree/' in url:
-        # Remove github.com part and tree/branch part
-        raw_url = url.replace('github.com', 'raw.githubusercontent.com')
-        raw_url = raw_url.replace('/tree/', '/')
-        # Add filename at the end
-        if not raw_url.endswith('/'):
-            raw_url += '/'
-        raw_url += filename
-        return raw_url
-    return None
 
 def fetch_file_list(platform_name, max_files=999):
     """Fast file list fetching with caching"""
@@ -154,7 +114,7 @@ def fetch_file_list(platform_name, max_files=999):
     if is_cache_valid(cache_file):
         print(f"Loading {platform_name} from cache...", file=sys.stderr)
         cached_data = load_from_cache(cache_file)
-        if cached_data:
+        if cached_data and cached_data.get("count", 0) > 0:
             return cached_data
     
     if platform_name not in PLATFORM_URLS:
@@ -174,10 +134,7 @@ def fetch_file_list(platform_name, max_files=999):
         html = response.read().decode('utf-8', errors='ignore')
         
         # Fast HTML parsing - only get first 15 files
-        files = simple_html_parse(html, max_files, url)
-        
-        # Store the base URL for downloading
-        result_base_url = url
+        files = simple_html_parse(html, max_files)
         
         print(f"Found {len(files)} files (showing first {max_files})", file=sys.stderr)
         
