@@ -3,8 +3,8 @@ local push = require('push')
 local timer = require('timer')
 local osk = require('osk')
 
-local gameWidth, gameHeight = 640, 480
-local windowWidth, windowHeight = 640, 480
+local gameWidth, gameHeight = 720, 480
+local windowWidth, windowHeight = 720, 480
 
 -- Load platforms dynamically from fetcher.py
 local platforms = {}
@@ -141,15 +141,13 @@ function love.load()
     fontColors = {
         regular = {0.60, 0.60, 0.60} -- Medium gray text
     }
-    -- Color palette 
-    bgColor = {0.239, 0.200, 0.616} -- dark purple background
-    footerColor = {0.149, 0.118, 0.412} -- darker purple for footer
-    titleColor = {1.000, 1.000, 1.000} -- white for titles
-    textColor = {0.478, 0.435, 0.835} -- light purple for regular text
-    selectedColor = {1.000, 1.000, 1.000} -- white for selected item text
-    progressBgColor = {0.478, 0.435, 0.835} -- light purple for progress bar background
-    selectionBgColor = {0.478, 0.435, 0.835} -- light purple for selected item background
-    selectionTextColor = {1.000, 1.000, 1.000} -- white text for selected item
+    -- Color palette
+    bgColor = {1, 1, 1} -- Very dark black background
+    footerColor = {0.95, 0.95, 0.95} -- Very dark gray for footer
+    titleColor = {0.25, 0.25, 0.25} -- Medium gray for titles
+    textColor = {0.13, 0.12, 0.12} -- Medium gray for text
+    selectedColor = {0.69, 0.69, 0.69} -- Bright white for selections
+    progressBgColor = {0.25, 0.25, 0.25} -- Dark gray for progress bar background
 end
 
 function love.update(dt)
@@ -244,9 +242,9 @@ function drawMainScreen()
 
             -- Draw selection background rectangle
             if platformIndex == gameState.selectedPlatform then
-                love.graphics.setColor(selectionBgColor)
+                love.graphics.setColor(0.75, 0.70, 0.85)  -- Light purple/lavender background
                 love.graphics.rectangle('fill', 20, yPos - 2, gameWidth - 40, itemHeight + 2)
-                love.graphics.setColor(selectionTextColor)
+                love.graphics.setColor(0.2, 0.2, 0.2)  -- Dark text for selected
             else
                 love.graphics.setColor(textColor)
             end
@@ -296,9 +294,9 @@ function drawPlatformScreen()
             
             -- Draw selection background rectangle
             if platformIndex == gameState.selectedPlatform then
-                love.graphics.setColor(selectionBgColor)
+                love.graphics.setColor(0.75, 0.70, 0.85)  -- Light purple/lavender background
                 love.graphics.rectangle('fill', 20, yPos - 2, gameWidth - 40, itemHeight + 2)
-                love.graphics.setColor(selectionTextColor)
+                love.graphics.setColor(0.2, 0.2, 0.2)  -- Dark text for selected
             else
                 love.graphics.setColor(textColor)
             end
@@ -331,7 +329,7 @@ function drawFileListScreen()
         
         -- Loading animation
         local dots = string.rep(".", math.floor(love.timer.getTime() * 2) % 4)
-        love.graphics.setColor(titleColor)
+        love.graphics.setColor(selectedColor)
         love.graphics.printf("Loading" .. dots, 0, gameHeight / 2 - 12, gameWidth, 'center')
         return
     end
@@ -379,9 +377,9 @@ function drawFileListScreen()
 
             -- Draw selection background rectangle
             if fileIndex == gameState.selectedFile then
-                love.graphics.setColor(selectionBgColor)
+                love.graphics.setColor(0.75, 0.70, 0.85)  -- Light purple/lavender background
                 love.graphics.rectangle('fill', 20, yPos - 2, gameWidth - 40, itemHeight + 2)
-                love.graphics.setColor(selectionTextColor)
+                love.graphics.setColor(0.2, 0.2, 0.2)  -- Dark text for selected
             else
                 love.graphics.setColor(textColor)
             end
@@ -452,19 +450,19 @@ function drawDownloadScreen()
         love.graphics.printf("File: " .. fileName, 0, 130, gameWidth, 'center')
     end
     
-    love.graphics.setColor(textColor)
+    love.graphics.setColor(selectedColor)
     love.graphics.setFont(titleFont)
     love.graphics.printf(gameState.downloadStatus, 0, 180, gameWidth, 'center')
     
 end
 
 function drawBulkDownloadScreen()
-    love.graphics.setColor(titleColor)
+    love.graphics.setColor(textColor)
     love.graphics.setFont(titleFont)
     love.graphics.printf("BULK DOWNLOADING FileS", 0, 30, gameWidth, 'center')
     
     local platform = platforms[gameState.selectedPlatform]
-    love.graphics.setColor(titleColor)
+    love.graphics.setColor(textColor)
     love.graphics.setFont(headerFont)
     love.graphics.printf("Platform: " .. platform.name, 0, 70, gameWidth, 'center')
     
@@ -487,13 +485,13 @@ function drawBulkDownloadScreen()
     local barY = 170
     
     -- Background bar
-    love.graphics.setColor(footerColor)
+    love.graphics.setColor(progressBgColor)
     love.graphics.rectangle('fill', barX, barY, barWidth, barHeight)
     
     -- Progress bar
     if gameState.bulkDownloadTotal > 0 then
         local progress = gameState.bulkDownloadIndex / gameState.bulkDownloadTotal
-        love.graphics.setColor(selectionBgColor) -- Use dark green for progress bar
+        love.graphics.setColor(selectedColor) -- Use bright orange for progress bar
         love.graphics.rectangle('fill', barX, barY, barWidth * progress, barHeight)
     end
     
@@ -512,21 +510,21 @@ function drawBulkDownloadScreen()
     end
     
     -- Status
-    love.graphics.setColor(titleColor)
+    love.graphics.setColor(selectedColor)
     love.graphics.setFont(titleFont)
     love.graphics.printf(gameState.downloadStatus, 0, 250, gameWidth, 'center')
     
     -- Footer background
     love.graphics.setColor(footerColor)
-    love.graphics.rectangle('fill', 0, 390, gameWidth, 90)
+    love.graphics.rectangle('fill', 0, 340, gameWidth, 140)
     
     -- Controls
     love.graphics.setColor(titleColor)
     love.graphics.setFont(titleFont)
     if gameState.bulkDownloadActive then
-        love.graphics.printf("Downloading... Press B to cancel", 0, 410, gameWidth, 'center')
+        love.graphics.printf("Downloading... Press B to cancel", 0, 350, gameWidth, 'center')
     else
-        love.graphics.printf("Press B to return to File list", 0, 410, gameWidth, 'center')
+        love.graphics.printf("Press B to return to File list", 0, 350, gameWidth, 'center')
     end
 end
 

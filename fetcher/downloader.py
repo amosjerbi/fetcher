@@ -11,6 +11,7 @@ import re
 import time
 import socket
 import threading
+import argparse
 from urllib.error import URLError, HTTPError
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -37,6 +38,26 @@ def get_platform_folder(platform_name):
     except Exception as e:
         print(f"Error getting platform folder: {e}", file=sys.stderr)
     
+    # Fallback to hardcoded mapping
+    fallback_folders = {
+        "pico-8": "pico-8",
+        "Game Boy": "gb",
+        "Game Boy Color": "gbc",
+        "Game Boy Advance": "gba",
+        "NES": "nes",
+        "Famicom Disk System": "fds",
+        "SNES": "snes",
+        "Game Gear": "gamegear",
+        "Master System": "mastersystem",
+        "Genesis": "genesis",
+        "Saturn": "saturn",
+        "Dreamcast": "dreamcast",
+        "PlayStation 1": "psx",
+        "PSP": "psp",
+        "Nintendo DS": "nds",
+        "Nintendo 64": "n64",
+        "PC Engine": "pcengine"
+    }
     
     return fallback_folders.get(platform_name, platform_name.lower().replace(" ", ""))
 
@@ -79,7 +100,8 @@ def parallel_chunk_download(url, start_byte, end_byte, chunk_id):
     try:
         req = urllib.request.Request(url)
         req.add_header('User-Agent', 'File Downloader/1.0 (Parallel)')
-        req.add_header('Accept-Encoding', 'gzip, deflate')
+        # Range downloads must use identity encoding so byte offsets remain valid.
+        req.add_header('Accept-Encoding', 'identity')
         req.add_header('Connection', 'keep-alive')
         req.add_header('Range', f'bytes={start_byte}-{end_byte}')
         
@@ -113,7 +135,7 @@ def optimized_download_with_progress(url, target_file, progress_callback=None):
     # First, get file size and test for range support
     req = urllib.request.Request(url)
     req.add_header('User-Agent', 'File Downloader/1.0 (Speed Optimized)')
-    req.add_header('Accept-Encoding', 'gzip, deflate')
+    req.add_header('Accept-Encoding', 'identity')
     req.add_header('Connection', 'keep-alive')
     
     try:
@@ -144,7 +166,7 @@ def single_threaded_download(url, target_file, progress_callback, total_size):
     """Optimized single-threaded download"""
     req = urllib.request.Request(url)
     req.add_header('User-Agent', 'File Downloader/1.0 (Single Thread)')
-    req.add_header('Accept-Encoding', 'gzip, deflate')
+    req.add_header('Accept-Encoding', 'identity')
     req.add_header('Connection', 'keep-alive')
     
     try:
@@ -291,7 +313,8 @@ def accelerated_file_download(url, target_file):
             try:
                 req = urllib.request.Request(self.url)
                 req.add_header('User-Agent', f'File Accelerator/1.0 (Conn {connection_id})')
-                req.add_header('Accept-Encoding', 'gzip, deflate')
+                # Keep chunks byte-for-byte identical for safe reassembly.
+                req.add_header('Accept-Encoding', 'identity')
                 req.add_header('Connection', 'keep-alive')
                 
                 if start_byte is not None and end_byte is not None:
@@ -429,6 +452,38 @@ def write_progress_status(downloaded, total_size):
             print(f"Progress write error: {e}", file=sys.stderr)
             pass  # Don't fail download if progress file can't be written
 
+def show_rom_collection(rom_base="/storage/roms"):
+    """Show current ROM/file collection grouped by platform folder"""
+    print("Current File Collection:")
+    print("=" * 30)
+
+    consoles_found = []
+    total_files = 0
+    valid_extensions = ('.zip', '.7z', '.rom', '.iso', '.bin', '.cue', '.p8.png')
+
+    if os.path.exists(rom_base):
+        for item in os.listdir(rom_base):
+            path = os.path.join(rom_base, item)
+            if os.path.isdir(path) and item != "ports":
+                try:
+                    roms = [f for f in os.listdir(path) if f.endswith(valid_extensions)]
+                    if roms:
+                        file_count = len(roms)
+                        consoles_found.append((item, file_count))
+                        total_files += file_count
+                except OSError:
+                    continue
+
+    if consoles_found:
+        for console, count in sorted(consoles_found):
+            print(f"  - {console}: {count} file(s)")
+        print(f"\nTotal: {total_files} files")
+    else:
+        print("  No files found")
+    print()
+
+    return {"folders": consoles_found, "total_files": total_files}
+
 def download_file(platform_name, file_filename):
     """Download file to appropriate platform folder with proper URL handling"""
     if platform_name not in PLATFORM_URLS:
@@ -438,46 +493,33 @@ def download_file(platform_name, file_filename):
         # Handle URL encoding properly
         base_url = PLATFORM_URLS[platform_name]
         
-        # If file_filename is already URL-encoded, use it as-is
-        # If not, encode it properly
-        if '%' in file_filename:
-            # Already encoded
-            encoded_filename = file_filename
-            clean_filename_for_save = urllib.parse.unquote(file_filename)
+        parsed_filename = urllib.parse.urlsplit(file_filename)
+        raw_path = parsed_filename.path
+        raw_query = parsed_filename.query
+
+        # Preserve folder segments in paths; only encode path characters when needed.
+        if '%' in raw_path:
+            encoded_path = raw_path
         else:
-            # Need to encode
-            encoded_filename = urllib.parse.quote(file_filename)
-            clean_filename_for_save = file_filename
+            encoded_path = urllib.parse.quote(raw_path, safe="/")
+
+        encoded_filename = encoded_path
+        if raw_query:
+            encoded_filename += f"?{raw_query}"
+
+        clean_filename_for_save = urllib.parse.unquote(os.path.basename(raw_path))
         
         # Construct download URL - handle GitHub repositories specially
         if 'github.com' in base_url:
-            if '/tree/' in base_url:
-                # GitHub folder/tree URL
-                # From: https://github.com/user/repo/tree/main/pico-8
-                # To: https://raw.githubusercontent.com/user/repo/main/pico-8/
-                raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
-                raw_base = raw_base.replace('/tree/', '/')
-                if not raw_base.endswith('/'):
-                    raw_base += '/'
-                # file_filename contains full path like "pico-8/romnix.p8.png"
-                # Extract just the filename for the URL
-                filename_only = file_filename.split('/')[-1]
-                file_url = raw_base + filename_only
-            elif '/blob/' in base_url:
-                # GitHub blob URL - single file
-                # From: https://github.com/user/repo/blob/main/pico-8/file.png
-                # To: https://raw.githubusercontent.com/user/repo/main/pico-8/file.png
-                raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
-                raw_base = raw_base.replace('/blob/', '/')
-                file_url = raw_base
-            else:
-                # Regular GitHub repo URL
-                raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
-                if not raw_base.endswith('/'):
-                    raw_base += '/'
-                if '/main/' not in raw_base and '/master/' not in raw_base:
-                    raw_base += 'main/'
-                file_url = raw_base + encoded_filename
+            # Convert GitHub repository URL to raw file URL
+            # From: https://github.com/user/repo to https://raw.githubusercontent.com/user/repo/main/
+            raw_base = base_url.replace('github.com', 'raw.githubusercontent.com')
+            if not raw_base.endswith('/'):
+                raw_base += '/'
+            # Add main branch if not already specified
+            if '/main/' not in raw_base and '/master/' not in raw_base:
+                raw_base += 'main/'
+            file_url = raw_base + encoded_filename
         else:
             # For Myrient and other direct download sites
             if not base_url.endswith('/'):
@@ -568,13 +610,74 @@ def download_file(platform_name, file_filename):
             json.dump(error_result, f)
         return error_result
 
+def bulk_download(platform_name, file_filenames):
+    """Download multiple files for one platform sequentially."""
+    results = []
+    success_count = 0
+    failed_count = 0
+
+    for index, file_name in enumerate(file_filenames, 1):
+        print(
+            f"Bulk download {index}/{len(file_filenames)}: {file_name}",
+            file=sys.stderr
+        )
+        result = download_file(platform_name, file_name)
+        results.append({"file": file_name, "result": result})
+
+        if result.get("status") == "success":
+            success_count += 1
+        else:
+            failed_count += 1
+
+    return {
+        "status": "success" if failed_count == 0 else "partial_success",
+        "platform": platform_name,
+        "total": len(file_filenames),
+        "success_count": success_count,
+        "failed_count": failed_count,
+        "results": results
+    }
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python3 downloader.py <platform_name> <file_filename>")
-        sys.exit(1)
-    
-    platform = sys.argv[1]
-    file_name = sys.argv[2]
-    
-    result = download_file(platform, file_name)
-    print(json.dumps(result, indent=2))
+    # Backward-compatible mode: `python3 downloader.py <platform> <filename>`
+    if len(sys.argv) == 3 and not sys.argv[1].startswith("-"):
+        platform = sys.argv[1]
+        file_name = sys.argv[2]
+        result = download_file(platform, file_name)
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if result.get("status") == "success" else 1)
+
+    parser = argparse.ArgumentParser(description="Real File Downloader CLI")
+    parser.add_argument(
+        "--show-rom-collection",
+        action="store_true",
+        help="Show current ROM/file collection under /storage/roms"
+    )
+    parser.add_argument(
+        "--bulk-download",
+        nargs="+",
+        metavar=("PLATFORM", "FILE"),
+        help="Bulk mode: first value is platform, remaining values are file names"
+    )
+
+    args = parser.parse_args()
+
+    if args.show_rom_collection:
+        show_rom_collection()
+        sys.exit(0)
+
+    if args.bulk_download:
+        if len(args.bulk_download) < 2:
+            print(
+                "Bulk download requires at least a platform and one file.",
+                file=sys.stderr
+            )
+            sys.exit(1)
+        platform = args.bulk_download[0]
+        files = args.bulk_download[1:]
+        result = bulk_download(platform, files)
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if result.get("failed_count", 0) == 0 else 1)
+
+    parser.print_help()
+    sys.exit(1)

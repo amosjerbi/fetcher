@@ -76,19 +76,32 @@ def simple_html_parse(html_content, max_files=999):
             
         # Extract filename from GitHub blob URLs like /user/repo/blob/main/file.zip
         if match.startswith('/') and '/blob/' in match:
-            # Extract just the filename from the path
-            filename = match.split('/')[-1]
+            # Preserve the repository-relative path after /blob/<branch>/.
+            parts = match.split('/')
+            try:
+                blob_index = parts.index('blob')
+                filename = '/'.join(parts[blob_index + 2:])
+            except ValueError:
+                filename = match.lstrip('/')
         elif match.startswith('/'):
-            # Keep absolute path links by taking the leaf filename.
-            filename = match.split('/')[-1]
+            # Preserve relative path and strip any query/fragment.
+            parsed = urllib.parse.urlsplit(match)
+            filename = parsed.path.lstrip('/')
+            if parsed.query:
+                filename = f"{filename}?{parsed.query}"
         elif match.startswith('http://') or match.startswith('https://'):
-            # Keep external absolute links by taking the leaf filename.
-            filename = match.split('/')[-1]
+            # Preserve path/query from external links instead of truncating to basename.
+            parsed = urllib.parse.urlsplit(match)
+            filename = parsed.path.lstrip('/')
+            if parsed.query:
+                filename = f"{filename}?{parsed.query}"
         else:
             filename = match
             
         # Clean up the file name for display
-        display_name = urllib.parse.unquote(filename)
+        display_name = urllib.parse.unquote(
+            os.path.basename(urllib.parse.urlsplit(filename).path)
+        )
         lower_name = display_name.lower()
         if lower_name.endswith('.p8.png'):
             display_name = display_name[:-7]  # Remove .p8.png extension for display

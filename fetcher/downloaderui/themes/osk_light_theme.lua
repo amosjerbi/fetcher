@@ -83,12 +83,6 @@ function osk.update(dt)
         elseif joystick:isGamepadDown("b") then
             osk.handleKeyPress("Back")
             timeSinceLastInput = 0
-        elseif joystick:isGamepadDown("start") then
-            osk.handleKeyPress("Enter")
-            timeSinceLastInput = 0
-        elseif joystick:isGamepadDown("back") then
-            osk.handleKeyPress("Clear")
-            timeSinceLastInput = 0
         end
     end
 end
@@ -106,9 +100,6 @@ function osk.handleKeyPress(key)
         end
         osk.hide()
           -- Hide OSK
-    elseif key == "Clear" then
-        -- Handle special key `Clear` - clear all input
-        inputText = ""
     else
         -- Check if adding the new key would exceed the limit
         if #inputText < 10 then
@@ -125,7 +116,7 @@ function osk.draw()
     
 
     -- Draw the full-screen background
-    love.graphics.setColor(0.149, 0.118, 0.412, 0.95)  -- Semi-transparent purple background
+    love.graphics.setColor(0.12, 0.12, 0.12, 0.95)  -- Semi-transparent black background
     love.graphics.rectangle("fill", 0, 0, push:getWidth(), push:getHeight())  -- Full screen
 
     -- Calculate the total width and height for the OSK
@@ -146,7 +137,7 @@ function osk.draw()
     local yOffset = (push:getHeight() - totalHeight) / 1.2
 
     -- Draw the keyboard keys
-    love.graphics.setColor(0.239, 0.200, 0.616)  -- Medium purple color for the keys
+    love.graphics.setColor(0.85, 0.85, 0.85)  -- Light silver color for the keys
     local currentY = yOffset
 
     for i, row in ipairs(rows) do
@@ -154,20 +145,17 @@ function osk.draw()
         for j, key in ipairs(row) do
             local keyW = (key == "Back" or key == "Enter") and keyWidth * specialKeyWidthMultiplier or keyWidth
             
-            -- Fill unpressed keys with progressBgColor
-            if not (i == oskSelection[1] and j == oskSelection[2]) then
-                love.graphics.setColor(0.239, 0.200, 0.616)  -- unslected key color (medium purple)
-                love.graphics.rectangle("fill", currentX, currentY, keyW, keyHeight)
-            end
-            
+            -- Draw key border
+            love.graphics.rectangle("line", currentX, currentY, keyW, keyHeight)
+
             -- Highlight the current selection
             if i == oskSelection[1] and j == oskSelection[2] then
-                love.graphics.setColor(0.478, 0.435, 0.835)  -- Light purple highlight
+                love.graphics.setColor(0.95, 0.95, 0.95, 0.8)  -- Bright white highlight
                 love.graphics.rectangle("fill", currentX, currentY, keyW, keyHeight)
             end
 
             -- Reset color for text
-            love.graphics.setColor(1.000, 1.000, 1.000)  -- White color for text
+            love.graphics.setColor(0.60, 0.60, 0.60)  -- Medium gray color for text
             
             -- Calculate the vertical offset to fine-tune the text position
             local verticalOffset = (keyHeight - font:getHeight()) 
@@ -186,7 +174,7 @@ function osk.draw()
     local textInputX = (push:getWidth() - textInputWidth) / 2
     local textInputY = yOffset - textInputHeight -60  -- Adjust position above the keyboard
 
-    love.graphics.setColor(1.000, 1.000, 1.000)  -- white for the input text
+    love.graphics.setColor(0.85, 0.85, 0.85)  -- Light silver for the input text
     local textWidth = font:getWidth(inputText)
     local textX = textInputX + (textInputWidth - textWidth) / 2
     local textY = textInputY + (textInputHeight - font:getHeight()) / 2

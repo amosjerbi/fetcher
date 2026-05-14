@@ -125,7 +125,8 @@ function osk.draw()
     
 
     -- Draw the full-screen background
-    love.graphics.setColor(0.149, 0.118, 0.412, 0.95)  -- Semi-transparent purple background
+    -- love.graphics.setColor(0.35, 0.45, 0.25, 0.95)  -- Semi-transparent dark green background
+    love.graphics.setColor(0.35, 0.45, 0.25, 0.95)  -- Semi-transparent dark green background
     love.graphics.rectangle("fill", 0, 0, push:getWidth(), push:getHeight())  -- Full screen
 
     -- Calculate the total width and height for the OSK
@@ -146,7 +147,7 @@ function osk.draw()
     local yOffset = (push:getHeight() - totalHeight) / 1.2
 
     -- Draw the keyboard keys
-    love.graphics.setColor(0.239, 0.200, 0.616)  -- Medium purple color for the keys
+    love.graphics.setColor(0.55, 0.66, 0.35)  -- Medium green color for the keys
     local currentY = yOffset
 
     for i, row in ipairs(rows) do
@@ -156,18 +157,22 @@ function osk.draw()
             
             -- Fill unpressed keys with progressBgColor
             if not (i == oskSelection[1] and j == oskSelection[2]) then
-                love.graphics.setColor(0.239, 0.200, 0.616)  -- unslected key color (medium purple)
+                love.graphics.setColor(0.55, 0.66, 0.35)  -- progressBgColor for unpressed keys
                 love.graphics.rectangle("fill", currentX, currentY, keyW, keyHeight)
             end
             
+            -- Draw key border (removed)
+            -- love.graphics.setColor(0.55, 0.66, 0.35)  -- Medium green color for the key borders
+            -- love.graphics.rectangle("line", currentX, currentY, keyW, keyHeight)
+
             -- Highlight the current selection
             if i == oskSelection[1] and j == oskSelection[2] then
-                love.graphics.setColor(0.478, 0.435, 0.835)  -- Light purple highlight
+                love.graphics.setColor(0.776, 0.878, 0.020)  -- Light green highlight
                 love.graphics.rectangle("fill", currentX, currentY, keyW, keyHeight)
             end
 
             -- Reset color for text
-            love.graphics.setColor(1.000, 1.000, 1.000)  -- White color for text
+            love.graphics.setColor(0.2, 0.3, 0.15)  -- Dark green color for text
             
             -- Calculate the vertical offset to fine-tune the text position
             local verticalOffset = (keyHeight - font:getHeight()) 
@@ -186,7 +191,7 @@ function osk.draw()
     local textInputX = (push:getWidth() - textInputWidth) / 2
     local textInputY = yOffset - textInputHeight -60  -- Adjust position above the keyboard
 
-    love.graphics.setColor(1.000, 1.000, 1.000)  -- white for the input text
+    love.graphics.setColor(0.129, 0.259, 0.192)  -- dark green for the input text
     local textWidth = font:getWidth(inputText)
     local textX = textInputX + (textInputWidth - textWidth) / 2
     local textY = textInputY + (textInputHeight - font:getHeight()) / 2

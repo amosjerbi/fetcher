@@ -3,8 +3,8 @@ local push = require('push')
 local timer = require('timer')
 local osk = require('osk')
 
-local gameWidth, gameHeight = 640, 480
-local windowWidth, windowHeight = 640, 480
+local gameWidth, gameHeight = 720, 480
+local windowWidth, windowHeight = 720, 480
 
 -- Load platforms dynamically from fetcher.py
 local platforms = {}
@@ -142,14 +142,14 @@ function love.load()
         regular = {0.60, 0.60, 0.60} -- Medium gray text
     }
     -- Color palette 
-    bgColor = {0.239, 0.200, 0.616} -- dark purple background
-    footerColor = {0.149, 0.118, 0.412} -- darker purple for footer
-    titleColor = {1.000, 1.000, 1.000} -- white for titles
-    textColor = {0.478, 0.435, 0.835} -- light purple for regular text
-    selectedColor = {1.000, 1.000, 1.000} -- white for selected item text
-    progressBgColor = {0.478, 0.435, 0.835} -- light purple for progress bar background
-    selectionBgColor = {0.478, 0.435, 0.835} -- light purple for selected item background
-    selectionTextColor = {1.000, 1.000, 1.000} -- white text for selected item
+    bgColor = {0.776, 0.878, 0.020} -- Light green background
+    footerColor = {0.616, 0.741, 0.145} -- Darker green for footer
+    titleColor = {0.129, 0.259, 0.192} -- Dark green for titles
+    textColor = {0.129, 0.259, 0.192} -- Dark green for text
+    selectedColor = {0.129, 0.259, 0.192} -- Keep same for selections
+    progressBgColor = {0.25, 0.25, 0.25} -- Keep same for progress bar
+    selectionBgColor = {0.616, 0.741, 0.145} -- Light green background for selection
+    selectionTextColor = {0.129, 0.259, 0.192} -- Dark green text for selected
 end
 
 function love.update(dt)

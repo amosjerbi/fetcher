@@ -5,59 +5,56 @@ PLATFORM=$1
 PLATFORM_FOLDER=$2
 REPO_PATH=$3
 
+if [ -z "$PLATFORM" ]; then
+  echo "Usage: $0 <platform> [platform_folder] [repo_path]"
+  exit 1
+fi
+
 echo "Starting download for $PLATFORM..."
 echo "Target folder: /storage/roms/$PLATFORM_FOLDER"
-echo "Source: https://github.com/username/file-repository/tree/main/$REPO_PATH/"
+if [ -n "$REPO_PATH" ]; then
+  echo "Source path hint: $REPO_PATH"
+fi
 echo ""
 
 # Create target directory
 mkdir -p "/storage/roms/$PLATFORM_FOLDER"
 
-# Launch Python downloader with platform pre-selected
+# Launch Python tools with platform pre-selected
 cd /storage/roms/ports/fetcher
 export PYTHONPATH="./lib:$PYTHONPATH"
 
-# Create a simple file list fetcher
-python3 -c "
-import urllib.request
-import urllib.parse
-from bs4 import BeautifulSoup
-import os
+# Fetch list using the project's supported source mapping.
+platform_json="$(python3 fetcher.py "$PLATFORM" 2>/tmp/fetcher_bridge_err.log)"
+if [ $? -ne 0 ] || [ -z "$platform_json" ]; then
+  echo "Error fetching file list for $PLATFORM."
+  if [ -s /tmp/fetcher_bridge_err.log ]; then
+    cat /tmp/fetcher_bridge_err.log
+  fi
+  exit 1
+fi
 
-platform = '$PLATFORM'
-folder = '$PLATFORM_FOLDER'  
-url = 'https://github.com/username/file-repository/tree/main/$REPO_PATH/'
+printf '%s\n' "$platform_json" | python3 -c '
+import json
+import sys
 
-print(f'Fetching file list for {platform}...')
-try:
-    response = urllib.request.urlopen(url, timeout=10)
-    html = response.read().decode('utf-8')
-    soup = BeautifulSoup(html, 'html.parser')
-    
-    files = []
-    for link in soup.find_all('a', href=True):
-        href = link['href']
-        if href.endswith('.zip'):
-            files.append(href)
-    
-    print(f'Found {len(files)} files available for download')
-    print('First 10 files:')
-    for i, file in enumerate(files[:10]):
-        print(f'{i+1:2d}. {file}')
-    
-    if len(files) > 10:
-        print(f'... and {len(files)-10} more')
-        
-    print('')
-    print('Use SSH to download specific files:')
-    print('ssh root@192.168.0.159')
-    print('cd /storage/files/ports/fetcher') 
-    print('python3 download.py')
-    
-except Exception as e:
-    print(f'Error fetching file list: {e}')
-    print('Check your internet connection and try again.')
-"
+data = json.load(sys.stdin)
+if data.get("status") != "success":
+    print(f"Error fetching file list: {data.get('"'"'error'"'"', '"'"'unknown error'"'"')}")
+    sys.exit(1)
+
+files = data.get("files", [])
+print(f"Found {len(files)} files available for download")
+print("First 10 files:")
+for i, item in enumerate(files[:10], 1):
+    print(f"{i:2d}. {item.get('"'"'filename'"'"', '"'"''"'"')}")
+if len(files) > 10:
+    print(f"... and {len(files) - 10} more")
+'
+if [ $? -ne 0 ]; then
+  echo "Failed to parse file list output."
+  exit 1
+fi
 
 echo ""
 echo "Download preparation completed!"
